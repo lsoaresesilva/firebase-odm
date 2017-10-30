@@ -25,7 +25,7 @@ export class AppComponent {
     let m = new Maoeoeoe(firestore);
     m.h = y;
     m.name = "Tevez";
-    m.salvar();
+    m.add();
     
   }
 }

@@ -7,17 +7,67 @@ import { QueryFn, DocumentChangeAction } from "angularfire2/firestore/interfaces
 import * as firebase from 'firebase/app';
 import { FirebaseApp } from "angularfire2";
 import { Observable } from "rxjs/Observable";
+import { Action } from "angularfire2/database";
 
 //import { belongsTo } from './entity';
 
-let collectionMock:Map<string, any[]>;
+let collectionMock: Map<string, any[]>;
 
 class AngularFirestoreDocumentMock<T> extends AngularFirestoreDocument<T>{
+
+    snapshotChanges(): Observable<Action<firebase.firestore.DocumentSnapshot>>{
+        let self = this;
+        return null;
+        /*return new Observable<Action<firebase.firestore.DocumentSnapshot>>(observer => {
+            let result:Action<firebase.firestore.DocumentSnapshot> = {
+                type:null,
+                payload
+            };
+            collectionMock.forEach((v, key, m) => {
+                if (key == self.ref.path) {
+                    for (let i = 0; i < collectionMock.get(key).length; i++) {
+                        let document = {
+                            payload: {
+                                doc: {
+                                    data: function () {
+                                        let doc = {}
+                                        for (let k in collectionMock.get(key)[i]) {
+                                            doc[k] = collectionMock.get(key)[i][k];
+                                        }
+                                        return doc;
+                                    },
+                                    id: collectionMock.get(key)[i].id
+                                }
+                            }
+                        };
+                        let x = 2;
+                        result.push(document);
+                        
+
+                    }
+                }
+            });
+
+
+
+
+            observer.next(result);
+            observer.complete();
+        });*/
+    }
+    
     delete(): Promise<void> {
         let self = this;
         return new Promise<void>(function (resolve, reject) {
-            if (collectionMock.has(self.ref.path)) {
-                collectionMock.delete(self.ref.path);
+
+            if (collectionMock.get(self.ref.path) != undefined) {
+
+                for (let i = 0; i < collectionMock.get(self.ref.path).length; i++) {
+                    if (self.ref.id == collectionMock.get(self.ref.path)[i].id) {
+                        collectionMock.get(self.ref.path).splice(i, 1);
+                    }
+                }
+                //collectionMock.delete(self.ref.path);
             }
             resolve();
         });
@@ -55,27 +105,28 @@ class AngularFirestoreCollectionMock<T> extends AngularFirestoreCollection<T>{
         super(ref, query);
     }
 
-    snapshotChanges(events?: firebase.firestore.DocumentChangeType[]): Observable<DocumentChangeAction[]>{
+    snapshotChanges(events?: firebase.firestore.DocumentChangeType[]): Observable<DocumentChangeAction[]> {
         let self = this;
-        return new Observable<DocumentChangeAction[]>(observer=>{
+        return new Observable<DocumentChangeAction[]>(observer => {
             let result = [];
-            for(let key in collectionMock){
-                if(key == self.ref.path){
-                    for(let i = 0; i < collectionMock[key].length; i++){
-                        let document = { 
-                            payload:{
-                                doc:{
-                                    data:function(){
+            collectionMock.forEach((v, key, m) => {
+                if (key == self.ref.path) {
+                    for (let i = 0; i < collectionMock.get(key).length; i++) {
+                        let document = {
+                            payload: {
+                                doc: {
+                                    data: function () {
                                         let doc = {}
-                                        for(let k in collectionMock[key][i]){
-                                            doc[k] = collectionMock[key][i][k];
+                                        for (let k in collectionMock.get(key)[i]) {
+                                            doc[k] = collectionMock.get(key)[i][k];
                                         }
                                         return doc;
                                     },
-                                    id:collectionMock[key][i].id
+                                    id: collectionMock.get(key)[i].id
                                 }
                             }
                         };
+                        let x = 2;
                         result.push(document);
                         /*let document:DocumentChangeAction = {
                             payload:{
@@ -98,7 +149,11 @@ class AngularFirestoreCollectionMock<T> extends AngularFirestoreCollection<T>{
 
                     }
                 }
-            }
+            });
+
+
+
+
             observer.next(result);
             observer.complete();
         });
@@ -111,17 +166,17 @@ class AngularFirestoreCollectionMock<T> extends AngularFirestoreCollection<T>{
         let self = this;
         return new Promise(function (resolve, reject) {
             let x = collectionMock[self.ref.path]
-            if (collectionMock[self.ref.path] == undefined) {
-                collectionMock[self.ref.path] = [];
+            if (collectionMock.get(self.ref.path) == undefined) {
+                collectionMock.set(self.ref.path, []);
             }
-            collectionMock[self.ref.path].push(data);
+            collectionMock.get(self.ref.path).push(data);
             resolve(data);
         });
     }
 
     doc(path: string): AngularFirestoreDocumentMock<{}> {
         let document: firebase.firestore.DocumentReference = {
-            id: "123",
+            id: path,
             collection: null,
             isEqual: null,
             set: null,
@@ -129,12 +184,12 @@ class AngularFirestoreCollectionMock<T> extends AngularFirestoreCollection<T>{
             delete: null,
             get: null,
             onSnapshot: null,
-            path: path, parent: null, firestore: null,
+            path: this.ref.path, parent: null, firestore: null,
 
         };
         document.delete = function (): Promise<any> {
             return new Promise<void>(function (resolve, reject) {
-                
+
                 resolve();
             });
         }
@@ -204,7 +259,7 @@ describe('Mock Entity tests', () => {
             name: string = "Leonardo"
             id: string = "90";
             //@ownership
-            ownership: any[] = [Pet]
+            has: any[] = [Pet]
         }
 
         let mp = new Pet(null);
@@ -243,7 +298,7 @@ describe('Mock Entity tests', () => {
             myPet: Pet
             name: string = "Leonardo"
             id: string = "90";
-            ownership: any[] = [Pet]
+            has: any[] = [Pet]
         }
         let p = new Person(null);
         let result = ["Pet"]
@@ -268,9 +323,10 @@ describe('Mock Entity tests', () => {
         //let mock = new AngularFirestoreMock(new FirebaseAppMock(), null);
         let animal: Animal = new Animal(mock);
         animal.name = "Bob"
-        animal.salvar().then(result => {
-            expect(Object.keys(collectionMock).includes("Animal")).toBeTruthy();
-            expect(collectionMock["Animal"].length).toBe(1);
+        animal.add().then(result => {
+
+            expect(collectionMock.has("Animal")).toBeTruthy();
+            expect(collectionMock.get("Animal").length).toBe(1);
             done();
         });
     }
@@ -311,7 +367,7 @@ describe('Mock Entity tests', () => {
 
         class Person extends Entity {
             name: string = null;
-            ownership = [Animal]
+            has = [Animal]
         }
 
 
@@ -320,9 +376,9 @@ describe('Mock Entity tests', () => {
         animal.name = "Bob";
         animal.person = person;
         person.name = "Leonardo";
-        animal.salvar().then(result => {
-            expect(Object.keys(collectionMock).length).toBe(2);
-            expect(collectionMock['Animal'][0].Person).toBe(collectionMock['Person'][0].id);
+        animal.add().then(result => {
+            expect(collectionMock.size).toBe(2);
+            expect(collectionMock.get('Animal')[0].Person).toBe(collectionMock.get('Person')[0].id);
             done();
         });
     }
@@ -336,7 +392,7 @@ describe('Mock Entity tests', () => {
 
         class Person extends Entity {
             name: string = null;
-            ownership = [Animal];
+            has = [Animal];
             id: string;
         }
 
@@ -347,9 +403,9 @@ describe('Mock Entity tests', () => {
         animal.person = person;
         person.name = "Leonardo - saved";
         person.id = '123456';
-        animal.salvar().then(result => {
-            expect(Object.keys(collectionMock).length).toBe(2);
-            expect(collectionMock['Animal'][0].Person).toBe("123456");
+        animal.add().then(result => {
+            expect(collectionMock.size).toBe(2);
+            expect(collectionMock.get('Animal')[0].Person).toBe("123456");
             done();
         });
     }
@@ -361,9 +417,14 @@ describe('Mock Entity tests', () => {
         }
 
         let a = new Animal(mock);
-        a.delete().then(result => {
-            done();
+        a.add().then(result => {
+            expect(collectionMock.size).toBe(1);
+            a.delete().then(result => {
+                expect(collectionMock.get("Animal").length).toBe(0);
+                done();
+            })
         })
+
 
     });
 
@@ -378,13 +439,15 @@ describe('Mock Entity tests', () => {
         let s2 = new Student(mock);
         let s3 = new Student(mock);
         let savedResults = [];
-        savedResults.push(s1.salvar());
-        savedResults.push(s2.salvar());
-        savedResults.push(s3.salvar());
+        savedResults.push(s1.add());
+        savedResults.push(s2.add());
+        savedResults.push(s3.add());
         Promise.all(savedResults).then(result => {
-            expect(Object.keys(collectionMock).length).toBe(1);
-            Student.deleteAll().then(result => {
-                let x = result;
+            expect(collectionMock.get("Student").length).toBe(3);
+
+            Student.deleteAll(mock).subscribe(result => {
+                expect(collectionMock.get("Student").length).toBe(0);
+                done();
             });
         });
 
@@ -393,7 +456,7 @@ describe('Mock Entity tests', () => {
     it('should remove self and its related documents from database ', () => {
         class School extends Entity {
             name: string = null;
-            ownership = [Student]
+            has = [Student]
         }
 
         class Student extends Entity {
@@ -404,26 +467,28 @@ describe('Mock Entity tests', () => {
         let s = new School(mock);
         let student = new Student(mock);
         student.school = s;
-        student.salvar();
+        student.add();
         expect(Object.keys.length).toBe(1);
         //expect(School.deleteAll()).toBe("Animal");
 
     });
 
-    it("should build a new model based on params", ()=>{
+    it("should build a new model based on params", () => {
         class Student extends Entity {
-            
+
 
         }
 
         let s = new Student(mock);
-        s._build({name:"Leonardo", age:30});
+        s._build({ name: "Leonardo", age: 30 });
         expect(s['name']).toBe("Leonardo");
         expect(s['age']).toBe(30);
-        
+
     });
 
-    it("should return all documents within a Collection", ()=>{
+
+
+    it("should return all documents within a Collection", done => {
         class Student extends Entity {
             name: string = "Leonardo";
 
@@ -433,16 +498,49 @@ describe('Mock Entity tests', () => {
         let s2 = new Student(mock);
         let s3 = new Student(mock);
         let savedResults = [];
-        savedResults.push(s1.salvar());
-        savedResults.push(s2.salvar());
-        savedResults.push(s3.salvar());
+        savedResults.push(s1.add());
+        savedResults.push(s2.add());
+        savedResults.push(s3.add());
         Promise.all(savedResults).then(result => {
             let expectedResult = []
             expectedResult.push(new Student(mock), new Student(mock), new Student(mock));
-            Student.getAll().subscribe(result =>{
-                 expect(result.length).toBe(3);
+            Student.getAll(mock).subscribe(result => {
+                expect(result.length).toBe(3);
+                done();
             });
             //expect(Entity.getAll()).toEqual(expectedResult);
         });
-    })    
+    })
+
+    it("should count the number of documents inside a collection", done=>{
+        class Student extends Entity {
+            name: string = "Leonardo";
+
+        }
+
+        let s1 = new Student(mock);
+        s1.add().then(result => {
+            let id = s1.id;
+            Student.count(mock).subscribe(result=>{
+                expect(result).toBe(1);
+                done();
+            })
+        })
+    })
+
+    it('should return one document based on ID', done=>{
+        class Student extends Entity {
+            name: string = "Leonardo";
+
+        }
+
+        let s1 = new Student(mock);
+        s1.add().then(result => {
+            let id = s1.id;
+            Student.get(mock,id).subscribe(result=>{
+                //expect(result.id).toBe(id);
+                done();
+            })
+        })
+    })
 })
