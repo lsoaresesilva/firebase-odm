@@ -21,10 +21,10 @@ export class Entity {
 
     id?: string;
     has?: any[]; // Trocar por has
-    static fireStore: AngularFirestore;
+    fireStore: AngularFirestore;
 
     constructor(private fsService: AngularFirestore, params?) {
-        Entity.fireStore = fsService;
+        this.fireStore = fsService;
         this._build(params);
         //this.ownership = [];
     }
@@ -80,51 +80,103 @@ export class Entity {
         return this.constructor.name;
     }
 
+    static _documentToObject(fireStore, document): any {
+        let id;
+        let data;
+
+        try {
+
+            if (document.payload.doc == undefined) {
+                data = document.payload.data();
+                id = document.payload.id;
+            } else {
+
+                data = document.payload.doc.data();
+                id = document.payload.doc.id;
+            }
+
+            return Reflect.construct(this, [fireStore, { id, ...data }]);
+        } catch (e) {
+            throw new Error("This document doesn't exist.");
+        }
+    }
+
     static _getFromSnapshot(fireStore, collection): Observable<any[]> {
         return new Observable(observer => {
             let self = this;
             collection.snapshotChanges().subscribe(result => {
                 let documents = [];
                 result.map(action => {
-
-                    const data = action.payload.doc.data();
-                    const id = action.payload.doc.id;
-                    let document = Reflect.construct(this, [fireStore, { id, ...data }]);
-                    documents.push(document);
+                    try{
+                        let document = this._documentToObject(fireStore, action);
+                        documents.push(document);
+                        
+                    }catch(e){
+                        observer.error(new Error(e));
+                    }
                 });
-
+                
                 observer.next(documents);
                 observer.complete();
+                
 
             });
         });
     }
 
-    static getAll(fireStore:AngularFirestore): Observable<any[]> {
+    static get(fireStore: AngularFirestore, id): Observable<any> {
+        return new Observable(observer => {
 
+            let result$: Observable<any>;
+            let document: any = fireStore.doc<any>(this.className() + "/" + id);
+            document.snapshotChanges().subscribe(result => {
+                try {
+                    let doc = Entity._documentToObject(fireStore, result);
+                    observer.next(doc);
+                    observer.complete();
+                } catch (e) {
+                    observer.error(new Error(e.message));
+                } finally {
+                    
+                }
+            });
+
+
+        });
+    }
+
+    static getAll(fireStore: AngularFirestore, collectionName?): Observable<any[]> {
+
+        if (collectionName == undefined)
+            collectionName = this.className()
 
         return new Observable(observer => {
-            let collection: AngularFirestoreCollection<any> = fireStore.collection<any>(this.className());
+            let collection: AngularFirestoreCollection<any> = fireStore.collection<any>(collectionName);
+
             this._getFromSnapshot(fireStore, collection).subscribe(result => {
                 let documents = result;
                 observer.next(documents);
                 observer.complete();
+            },err=>{
+                observer.error(err);
             });
 
         });
 
     }
 
-    static deleteAll(fireStore): Observable<void> {
-
+    static deleteAll(fireStore:AngularFirestore, collectionName?): Observable<void> {
 
         return new Observable<void>(observer => {
-            let collection = fireStore.collection(this.className());
-            this.getAll(fireStore).subscribe(result => {
+
+            if (collectionName == undefined)
+                collectionName = this.className()
+            let collection: AngularFirestoreCollection<any> = fireStore.collection<any>(collectionName);
+            this.getAll(fireStore, collectionName).subscribe(result => {
                 let documents = [];
 
                 for (let i = 0; i < result.length; i++) {
-                    documents.push(result[i].delete());
+                    documents.push(result[i].delete(collectionName));
                 }
 
                 Promise.all(documents).then(result => {
@@ -132,18 +184,21 @@ export class Entity {
                     observer.complete();
                 });
 
+            }, err=>{
+                observer.error(err);
             })
 
         });
     }
 
-    delete(): Promise<void> {
-        let x = this.className();
-        let collection: AngularFirestoreCollection<any> = Entity.fireStore.collection<any>(this.className());
+    delete(collectionName?): Promise<void> {
+        if (collectionName == undefined)
+            collectionName = this.className()
+        let collection: AngularFirestoreCollection<any> = this.fireStore.collection<any>(collectionName);
 
         let has = this.generateOwnership();
         has.forEach(element => {
-            element.deleteAll();
+            Entity.deleteAll(this.fireStore, element);
         });
 
         return collection.doc(this.id).delete();
@@ -171,9 +226,11 @@ export class Entity {
     /**
      * Returns the size of document's inside a collection.
      */
-    static count(fireStore:AngularFirestore): Observable<number> {
+    static count(fireStore: AngularFirestore, collectionName?): Observable<number> {
+        if (collectionName == undefined)
+            collectionName = this.className()
         return new Observable<number>(observer => {
-            let collection: AngularFirestoreCollection<any> = fireStore.collection<any>(this.className());
+            let collection: AngularFirestoreCollection<any> = fireStore.collection<any>(collectionName);
             this._getFromSnapshot(fireStore, collection).subscribe(result => {
                 observer.next(result.length);
                 observer.complete();
@@ -189,48 +246,34 @@ export class Entity {
         let promises: any[] = [];
         let relationships = this.relationships();
         for (let key in relationships) {
+            if (relationships[key].id != undefined) {
+                // TODO: update
+            } else {
+                promises.push(relationships[key].add());
+            }
 
-            promises.push(relationships[key].add());
         }
         return Promise.all(promises);
     }
 
-    static get(fireStore:AngularFirestore, id): Observable<any> {
-        let result$: Observable<any>;
-        let collection: AngularFirestoreCollection<any> = fireStore.collection<any>(this.className() + "/" + id);
 
-        return Entity._getFromSnapshot(fireStore, collection);
-    }
 
     add(): Promise<any> {
         //let inspector = ReflectiveInjector.resolveAndCreate([AngularFirestore]) 
         //let firestore:AngularFirestore = inspector.get(AngularFirestore);
-        let collection: AngularFirestoreCollection<any> = Entity.fireStore.collection<any>(this.className());
-        let myself = this; // this is lost in promise.
+        let collection: AngularFirestoreCollection<any> = this.fireStore.collection<any>(this.className());
+        let _this = this; // this is lost in promise.
         return new Promise<this>(function (resolve, reject) {
-            let relations = myself.relationships()
-            if (Object.keys(relations).length > 0) {
-                let savingRelationships = myself.saveRelationships();
-                savingRelationships.then(result => {
-                    collection.add(myself.toObject()).then(result => {
-                        myself.id = result.id;
 
-                        resolve(myself);
-                    });
-                })
-            } else {
-                collection.add(myself.toObject()).then(result => {
-                    myself.id = result.id;
+            let savingRelationships = _this.saveRelationships();
+            savingRelationships.then(result => {
+                collection.add(_this.toObject()).then(result => {
+                    _this.id = result.id;
 
-                    resolve(myself);
+                    resolve(_this);
                 });
-            }
 
-
+            });
         });
     }
-
-
-
 }
-

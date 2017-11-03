@@ -14,8 +14,8 @@ import { AngularFirestoreModule } from "angularfire2/firestore";
   ],
   imports: [
     BrowserModule,
-    AngularFireModule.initializeApp(FirebaseConfig),
-    AngularFirestoreModule.enablePersistence(),
+    //AngularFireModule.initializeApp(FirebaseConfig),
+    //AngularFirestoreModule.enablePersistence(),
   ],
   providers: [],
   bootstrap: [AppComponent]

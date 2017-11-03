@@ -6,20 +6,50 @@ import { AngularFirestore, AngularFirestoreModule } from "angularfire2/firestore
 import { TestBed } from "@angular/core/testing";
 import { Entity } from "./entity";
 import * as firebase from 'firebase/app';
+import 'rxjs/add/operator/catch';
+import { Observable } from 'rxjs/Rx';
 
 let RUN_TESTS = true;
+
+class Student extends Entity {
+
+}
+
+class Person extends Entity {
+
+}
+
 
 if (RUN_TESTS) {
   describe('Entity tests', () => {
     let app: firebase.app.App;
     let afs: AngularFirestore;
-    jasmine.DEFAULT_TIMEOUT_INTERVAL = 10000;
 
-    beforeEach(() => {
+    function firestoreCleanUp(done) {
+      Observable.forkJoin(Student.deleteAll(afs), Person.deleteAll(afs)).subscribe(result => {
+        //let personDelete = Entity.deleteAll(afs, "Person");
+        done();
+      },
+        err => {
+          console.log(err)
+          done();
+        },
+        () => {
+          //done();
+        });
+    }
+
+    function insertOnFireStore() {
+      let s1 = new Student(afs);
+      return s1.add();
+    }
+
+    beforeAll(() => {
+      jasmine.DEFAULT_TIMEOUT_INTERVAL = 1200000;
       TestBed.configureTestingModule({
         imports: [
           AngularFireModule.initializeApp(COMMON_CONFIG),
-          AngularFirestoreModule.enablePersistence()
+          AngularFirestoreModule//.enablePersistence()
 
         ]
       });
@@ -28,15 +58,122 @@ if (RUN_TESTS) {
         app = _app;
         afs = _afs;
       })();
+
     });
 
-    afterEach(async (done) => {
-      await app.delete();
-      done();
+    beforeEach((done) => {
+
+      firestoreCleanUp(done);
+
+    });
+
+    afterEach((done) => {
+      firestoreCleanUp(done)
+    });
+
+    // TODO: testar retornar um documento baseado em um id q n existe
+
+    it('should return one document based on ID', done => {
+
+      insertOnFireStore().then(result => {
+        let id = result.id;
+        Student.get(afs, id).subscribe(result => {
+
+          expect(result.id).toBe(id);
+          done();
+        });
+
+      });
+
+    });
+
+    // TODO: testar sem conexão
+
+    it("should return all documents from a collection", (done) => {
+      insertOnFireStore().then(result => {
+        Entity.getAll(afs, "Student").subscribe(result => {
+          expect(result.length).toBe(1);
+          done();
+        })
+      })
+
+
+    });
+
+    /*it("should return zero documents within a collection that does not exist", (done) => {
+      let collection = afs.collection("Person");
+      Entity._getFromSnapshot(afs, collection).subscribe(result => {
+        expect(result.length).toBe(0);
+        done();
+      });
+    })*/
+
+    it("should count documents inside a collection", (done) => {
+
+      Entity.count(afs, "Student").subscribe(result => {
+        expect(result).toBe(0);
+
+        insertOnFireStore().then(result => {
+          Entity.count(afs, "Student").subscribe(result => {
+            expect(result).toBe(1);
+            Student.count(afs).subscribe(result => {
+              expect(result).toBe(1);
+              done();
+            })
+
+          });
+        })
+
+
+      })
     });
 
 
-    it('should get the class name', () => {
+    it("should fail to load a object from a document that does not exists", (done) => {
+
+
+      let document: any = afs.doc<any>("Person/12345");
+      document.snapshotChanges().subscribe(result => {
+        expect(function () {
+          Entity._documentToObject(afs, result);
+        }).toThrow();
+        done();
+      });
+
+
+
+    })
+
+    it("should delete all documents from a collection", (done) => {
+      insertOnFireStore().then(result => {
+        Entity.count(afs, "Student").subscribe(result => {
+          expect(result).toBe(1);
+          Student.deleteAll(afs).subscribe(result => {
+            Entity.count(afs, "Student").subscribe(result => {
+              expect(result).toBe(0);
+              insertOnFireStore().then(result=>{
+                Entity.count(afs, "Student").subscribe(result=>{
+                  expect(result).toBe(1);
+                  Entity.deleteAll(afs, "Student").subscribe(result=>{
+                      Entity.count(afs, "Student").subscribe(result=>{
+                        expect(result).toBe(0);
+                        done();
+                      })
+                  })
+                  
+                });
+              
+                
+              });
+            });
+          });
+        });
+      })
+
+    });
+
+
+    /*it('should get the class name', () => {
       class MyClass extends Entity {
 
       }
@@ -110,14 +247,14 @@ if (RUN_TESTS) {
       expect(e.generateOwnership()).toEqual(secondResult);
     });
 
-    it("should remove all documents related to a parent document", done => {
+    it("should remove all documents related to a collection", done => {
 
       class Student extends Entity {
         name: string = "Leonardo";
 
       }
 
-      /*let s1 = new Student(afs);
+      let s1 = new Student(afs);
       let s2 = new Student(afs);
       let s3 = new Student(afs);
       let savedResults = [];
@@ -125,17 +262,21 @@ if (RUN_TESTS) {
       savedResults.push(s2.add());
       savedResults.push(s3.add());
       Promise.all(savedResults).then(result => {
-        expect(Student).toBe(3);
-
-        
-      });*/
-
-      Student.deleteAll(afs).subscribe(result => {
         Student.count(afs).subscribe(result => {
-          expect(result).toBe(0);
-          done();
+          expect(result).toBe(3);
+          Student.deleteAll(afs).subscribe(result => {
+            Student.count(afs).subscribe(result => {
+              expect(result).toBe(0);
+              done();
+            })
+          });
         })
+
+
+
       });
+
+
 
     })
 
@@ -146,20 +287,22 @@ if (RUN_TESTS) {
       }
 
       let s1 = new Student(afs);
-      Student.deleteAll(afs).subscribe(result => {
-        s1.add().then(result => {
-          let id = s1.id;
-          Student.count(afs).subscribe(result => {
-            expect(result).toBe(1);
-            Student.deleteAll(afs).subscribe(result => {
-              done();
-            });
 
-          })
+      done();*/
+    /*Student.deleteAll(afs).subscribe(result => {
+      s1.add().then(result => {
+        let id = s1.id;
+        Student.count(afs).subscribe(result => {
+          expect(result).toBe(1);
+          Student.deleteAll(afs).subscribe(result => {
+            done();
+          });
+
         })
       })
+    })*/
 
-    })
+    /*})
 
     it("should save an instance", done => {
       class Animal extends Entity {
@@ -238,7 +381,9 @@ if (RUN_TESTS) {
           Animal.count(afs).subscribe(result => {
             expect(result).toBe(1);
             Animal.deleteAll(afs).subscribe(result => {
-              done();
+              Person.deleteAll(afs).subscribe(result => {
+                done();
+              });
             });
           })
 
@@ -274,8 +419,11 @@ if (RUN_TESTS) {
           Animal.count(afs).subscribe(result => {
             expect(result).toBe(1);
             Person.count(afs).subscribe(result => {
+              expect(result).toBe(1);
               Animal.deleteAll(afs).subscribe(result => {
-                done();
+                Person.deleteAll(afs).subscribe(result => {
+                  done();
+                });
               });
             })
 
@@ -287,98 +435,106 @@ if (RUN_TESTS) {
     }
     )
 
-    /*it('should remove self from database', done => {
-        class Animal extends Entity {
-            name: string = null;
-        }
- 
-        let a = new Animal(afs);
-        a.add().then(result => {
-            expect(collectionMock.size).toBe(1);
-            a.delete().then(result => {
-                expect(collectionMock.get("Animal").length).toBe(0);
-                done();
-            })
-        })
- 
- 
-    });
- 
-   
- 
-    it('should remove self and its related documents from database ', () => {
-        class School extends Entity {
-            name: string = null;
-            has = [Student]
-        }
- 
-        class Student extends Entity {
-            name: string = "Leonardo";
-            school: School = null;
-        }
- 
-        let s = new School(afs);
-        let student = new Student(afs);
-        student.school = s;
-        student.add();
-        expect(Object.keys.length).toBe(1);
-        //expect(School.deleteAll()).toBe("Animal");
- 
-    });
- 
-    it("should build a new model based on params", () => {
-        class Student extends Entity {
- 
- 
-        }
- 
-        let s = new Student(afs);
-        s._build({ name: "Leonardo", age: 30 });
-        expect(s['name']).toBe("Leonardo");
-        expect(s['age']).toBe(30);
- 
-    });
- 
- 
- 
-    it("should return all documents within a Collection", done => {
-        class Student extends Entity {
-            name: string = "Leonardo";
- 
-        }
- 
-        let s1 = new Student(afs);
-        let s2 = new Student(afs);
-        let s3 = new Student(afs);
-        let savedResults = [];
-        savedResults.push(s1.add());
-        savedResults.push(s2.add());
-        savedResults.push(s3.add());
-        Promise.all(savedResults).then(result => {
-            let expectedResult = []
-            expectedResult.push(new Student(afs), new Student(afs), new Student(afs));
-            Student.getAll().subscribe(result => {
-                expect(result.length).toBe(3);
-                done();
+    it('should remove self from database', done => {
+      class Animal extends Entity {
+        name: string = null;
+      }
+
+      let a = new Animal(afs);
+      a.add().then(result => {
+        Animal.count(afs).subscribe(result => {
+          expect(result).toBe(1);
+          a.delete().then(result => {
+            Animal.count(afs).subscribe(result => {
+              expect(result).toBe(0);
+              done();
             });
-            //expect(Entity.getAll()).toEqual(expectedResult);
+          });
+
         });
-    })
- 
-    it('should return one document based on ID', done=>{
-        class Student extends Entity {
-            name: string = "Leonardo";
- 
-        }
- 
-        let s1 = new Student(afs);
-        s1.add().then(result => {
-            let id = s1.id;
-            Student.get(id).subscribe(result=>{
-                expect(result.id).toBe(id);
+      });
+
+    });
+
+
+
+    it('should remove self and its related documents from database ', done => {
+      class School extends Entity {
+        name: string = null;
+        has = [Student]
+      }
+
+      class Student extends Entity {
+        name: string = "Leonardo";
+        school: School = null;
+      }
+
+      let s = new School(afs);
+      let student = new Student(afs);
+      student.school = s;
+
+      student.add().then(result => {
+        Student.deleteAll(afs).subscribe(result => {
+          Student.count(afs).subscribe(result => {
+            expect(result).toBe(0);
+            School.deleteAll(afs).subscribe(result => {
+              School.count(afs).subscribe(result => {
+                expect(result).toBe(0);
                 done();
+              })
             })
-        })
-    })*/
+
+          });
+        });
+      });
+
+
+
+    });
+
+    it("should build a new model based on params", () => {
+      class Student extends Entity {
+
+
+      }
+
+      let s = new Student(afs);
+      s._build({ name: "Leonardo", age: 30 });
+      expect(s['name']).toBe("Leonardo");
+      expect(s['age']).toBe(30);
+
+    });
+
+
+*/
+    /*it("should return all documents within a Collection", done => {
+      class Student extends Entity {
+        name: string = "Leonardo";
+
+      }
+
+      let s1 = new Student(afs);
+      let s2 = new Student(afs);
+      let s3 = new Student(afs);
+      let savedResults = [];
+      savedResults.push(s1.add());
+      savedResults.push(s2.add());
+      savedResults.push(s3.add());
+      Student.deleteAll(afs).subscribe(result => {
+        Promise.all(savedResults).then(result => {
+
+          Student.getAll(afs).subscribe(result => {
+            expect(result.length).toBe(3);
+            Student.deleteAll(afs).subscribe(result => {
+              done();  
+            });
+            
+          });
+
+        });
+      })
+    });*/
+
+
   })
 }

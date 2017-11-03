@@ -10,7 +10,7 @@ import { Observable } from "rxjs/Observable";
 import { Action } from "angularfire2/database";
 
 //import { belongsTo } from './entity';
-
+/*
 let collectionMock: Map<string, any[]>;
 
 class AngularFirestoreDocumentMock<T> extends AngularFirestoreDocument<T>{
@@ -18,42 +18,7 @@ class AngularFirestoreDocumentMock<T> extends AngularFirestoreDocument<T>{
     snapshotChanges(): Observable<Action<firebase.firestore.DocumentSnapshot>>{
         let self = this;
         return null;
-        /*return new Observable<Action<firebase.firestore.DocumentSnapshot>>(observer => {
-            let result:Action<firebase.firestore.DocumentSnapshot> = {
-                type:null,
-                payload
-            };
-            collectionMock.forEach((v, key, m) => {
-                if (key == self.ref.path) {
-                    for (let i = 0; i < collectionMock.get(key).length; i++) {
-                        let document = {
-                            payload: {
-                                doc: {
-                                    data: function () {
-                                        let doc = {}
-                                        for (let k in collectionMock.get(key)[i]) {
-                                            doc[k] = collectionMock.get(key)[i][k];
-                                        }
-                                        return doc;
-                                    },
-                                    id: collectionMock.get(key)[i].id
-                                }
-                            }
-                        };
-                        let x = 2;
-                        result.push(document);
-                        
-
-                    }
-                }
-            });
-
-
-
-
-            observer.next(result);
-            observer.complete();
-        });*/
+      
     }
     
     delete(): Promise<void> {
@@ -128,24 +93,7 @@ class AngularFirestoreCollectionMock<T> extends AngularFirestoreCollection<T>{
                         };
                         let x = 2;
                         result.push(document);
-                        /*let document:DocumentChangeAction = {
-                            payload:{
-                                type:null, 
-                                doc:{
-                                    exists:true,
-                                    ref:{
-                                       id:collectionMock[key][i].id,
-                                       firestore:null,
-                                       parent:null,
-                                       path:self.ref.path,
-                                       collection:null,
-                                       isEqual():null,
-
-
-                                    },
-                                    id:collectionMock[key][i].id
-                                }},
-                            type:null};*/
+                        
 
                     }
                 }
@@ -543,4 +491,4 @@ describe('Mock Entity tests', () => {
             })
         })
     })
-})
+})*/
