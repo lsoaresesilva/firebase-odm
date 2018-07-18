@@ -2,7 +2,7 @@
 
 Saving, reading and updating on Google Firebase with AngularFirestore is a tedious and repetitive task. This project aims to minimize this problem.
 
-At the time, insert, read, list all, delete and delete all are working.
+At the time, insert, read, list all, delete, delete all and count are working.
 TODO: working to save relationships recursively and to update an entity.
 
 # Use
@@ -32,6 +32,12 @@ export class AppComponent {
     let person = new Person(db);
     c.name = "Leonardo"
     c.add();
+    
+    let addedPerson = Person.get(db, 'your-entity-id');
+    let listAllPersons = Entity.getall(db, "Person"); // yah, working on Person.getAll(), not ready yet
+    let countingPersons = Person.count(db);
+    c.delete();
+    Person.deleteAll(db);
   }
 }
 ```
