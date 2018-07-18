@@ -34,8 +34,8 @@ export class AppComponent {
     c.add();
     
     let addedPerson = Person.get(db, 'your-entity-id');
-    let listAllPersons = Entity.getall(db, "Person"); // yah, working on Person.getAll(), not ready yet
-    let countingPersons = Person.count(db);
+    Person.getall(db).subscribe(result=>{ // list of persons}); // yah, working on Person.getAll(), not ready yet
+    Person.count(db).subscribe(result=>{ // number of documents});
     c.delete();
     Person.deleteAll(db);
   }
