@@ -29,15 +29,15 @@ export class Person extends Entity{
 export class AppComponent {
   
   constructor(public db: AngularFirestore){
-    let person = new Person(db);
+    let person = new Person(this.db);
     c.name = "Leonardo"
     c.add();
     
-    let addedPerson = Person.get(db, 'your-entity-id');
-    let listAllPersons = Entity.getall(db, "Person"); // yah, working on Person.getAll(), not ready yet
-    let countingPersons = Person.count(db);
+    let addedPerson = Person.get(this.db, 'your-entity-id');
+    let listAllPersons = Entity.getAll(this.db, "Person"); // yah, working on Person.getAll(), not ready yet
+    let countingPersons = Person.count(this.db);
     c.delete();
-    Person.deleteAll(db);
+    Person.deleteAll(this.db);
   }
 }
 ```
