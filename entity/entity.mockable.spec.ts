@@ -1,12 +1,12 @@
 import { Entity, ownership } from "./entity";
 import { TestBed } from "@angular/core/testing";
 import { async } from "@angular/core/testing";
-import { AppComponent } from "../app.component";
+
 import { AngularFirestore, AngularFirestoreCollection, AngularFirestoreDocument } from "angularfire2/firestore";
 import { QueryFn, DocumentChangeAction } from "angularfire2/firestore/interfaces";
 import * as firebase from 'firebase/app';
 import { FirebaseApp } from "angularfire2";
-import { Observable } from "rxjs/Observable";
+
 import { Action } from "angularfire2/database";
 
 //import { belongsTo } from './entity';

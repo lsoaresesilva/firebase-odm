@@ -1,22 +1,25 @@
 import { FirebaseApp, FirebaseAppConfig, AngularFireModule } from 'angularfire2';
 import { AngularFireDatabase, AngularFireDatabaseModule } from 'angularfire2/database';
 import { inject } from '@angular/core/testing';
-import { COMMON_CONFIG } from './test-config';
+//import { COMMON_CONFIG } from './test-config';
 import { AngularFirestore, AngularFirestoreModule } from "angularfire2/firestore";
 import { TestBed } from "@angular/core/testing";
-import { Entity } from "./entity";
+import { Entity, manyToOne } from "./entity";
 import * as firebase from 'firebase/app';
-import 'rxjs/add/operator/catch';
-import { Observable } from 'rxjs/Rx';
+//import 'rxjs/add/operator/catch';
+import { Observable, forkJoin } from 'rxjs';
+import { FirebaseConfig } from 'src/environments/firebase.config';
 
 let RUN_TESTS = true;
 
 class Student extends Entity {
-
+  
+  
 }
 
 class Person extends Entity {
-
+  @manyToOne({document=Student.prototype})
+  student;
 }
 
 
@@ -26,7 +29,7 @@ if (RUN_TESTS) {
     let afs: AngularFirestore;
 
     function firestoreCleanUp(done) {
-      Observable.forkJoin(Student.deleteAll(afs), Person.deleteAll(afs)).subscribe(result => {
+      forkJoin(Student.deleteAll(afs), Person.deleteAll(afs)).subscribe(result => {
         //let personDelete = Entity.deleteAll(afs, "Person");
         done();
       },
@@ -48,7 +51,7 @@ if (RUN_TESTS) {
       jasmine.DEFAULT_TIMEOUT_INTERVAL = 1200000;
       TestBed.configureTestingModule({
         imports: [
-          AngularFireModule.initializeApp(COMMON_CONFIG),
+          AngularFireModule.initializeApp(FirebaseConfig),
           AngularFirestoreModule//.enablePersistence()
 
         ]
@@ -66,10 +69,10 @@ if (RUN_TESTS) {
       firestoreCleanUp(done);
 
     });
-
+/*
     afterEach((done) => {
       firestoreCleanUp(done)
-    });
+    });*/
 
     // TODO: testar retornar um documento baseado em um id q n existe
 
@@ -80,6 +83,7 @@ if (RUN_TESTS) {
         Student.get(afs, id).subscribe(result => {
 
           expect(result.id).toBe(id);
+          expect(result instanceof Student).toBeTruthy();
           done();
         });
 
@@ -87,6 +91,13 @@ if (RUN_TESTS) {
 
     });
 
+    it('should create a manyToOne property on annoted class.', () => {
+
+        //let p = new Person(null);
+        expect(Person.prototype.hasOwnProperty("_manyToOne")).toBeTruthy();
+
+    });
+  
     // TODO: testar sem conexão
 
     it("should return all documents from a collection", (done) => {
@@ -95,6 +106,8 @@ if (RUN_TESTS) {
           expect(result.length).toBe(1);
           done();
         })
+        //expect(true).toBe(true);
+        //done();
       })
 
 
@@ -128,18 +141,17 @@ if (RUN_TESTS) {
       })
     });
 
-
     it("should fail to load a object from a document that does not exists", (done) => {
 
 
       let document: any = afs.doc<any>("Person/12345");
       document.snapshotChanges().subscribe(result => {
         expect(function () {
-          Entity._documentToObject(afs, result);
+          Person._documentToObject(afs, result, Person.prototype);
         }).toThrow();
         done();
       });
-
+/*
 
 
     })
