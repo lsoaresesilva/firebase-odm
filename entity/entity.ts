@@ -1,6 +1,6 @@
 import { ReflectiveInjector } from '@angular/core';
 import { AngularFirestore, AngularFirestoreCollection } from "angularfire2/firestore";
-import { Observable } from 'rxjs';
+import { Observable, forkJoin } from 'rxjs';
 
 
 // Aluno -> Escola
@@ -91,7 +91,7 @@ export class Entity {
     }*/
 
     /*
-        Pass over all keys in the object
+        Pass over all keys in the object and transforms i
     */
     toObject() {
         let x = Reflect.ownKeys(this)
@@ -125,87 +125,83 @@ export class Entity {
         return this.constructor.name;
     }
 
-    static __documentToObject(fireStore, document): any {
-        let id;
-        let data;
+    static _documentToObject(fireStore, document, classCaller): Observable<any> {
+        return new Observable(observer => {
+            let id;
+            let data;
 
-        try {
-
-            if (document.payload.doc == undefined) {
-                data = document.payload.data();
-                id = document.payload.id;
-            } else {
-
-                data = document.payload.doc.data();
-                id = document.payload.doc.id;
-            }
-
-            return [fireStore, { id, ...data }];
-        } catch (e) {
-            throw new Error("This document doesn't exist.");
-        }
-    }
-
-    static _documentToObject(fireStore, document, classCaller): any {
-        let id;
-        let data;
-
-        try {
-            if ((document.payload.exists != undefined && document.payload.exists == true) ||
-                document.payload.doc != undefined && document.payload.doc.exists == true) {
+            try {
+                if ((document.payload.exists != undefined && document.payload.exists == true) ||
+                    document.payload.doc != undefined && document.payload.doc.exists == true) {
 
 
-                if (document.payload.doc == undefined) {
-                    data = document.payload.data();
-                    id = document.payload.id;
-                } else {
+                    if (document.payload.doc == undefined) {
+                        data = document.payload.data();
+                        id = document.payload.id;
+                    } else {
 
-                    data = document.payload.doc.data();
-                    id = document.payload.doc.id;
-                }
-                let propriedades = {}
-                propriedades['id'] = {
-                    value: id,
-                    writable: true,
-                    enumerable: true
-                }
-                propriedades['fireStore'] = {
-                    value: fireStore,
-                    writable: true,
-                    enumerable: true
-                }
+                        data = document.payload.doc.data();
+                        id = document.payload.doc.id;
+                    }
+                    let observables = []
+                    let propriedades = {}
+                    propriedades['id'] = {
+                        value: id,
+                        writable: true,
+                        enumerable: true
+                    }
+                    propriedades['fireStore'] = {
+                        value: fireStore,
+                        writable: true,
+                        enumerable: true
+                    }
 
-                if (typeof data == "object") {
-                    let x = Reflect.ownKeys(data)
-                    x.forEach(element => {
-                        propriedades[element] = {
-                            value: data[element],
-                            writable: true,
-                            enumerable: true
-                        }
-                        if (classCaller.prototype._manyToOne != undefined) {
-                            if (classCaller.prototype._manyToOne[element] != undefined) {
-                                let obje = classCaller.prototype._manyToOne[element];
-                                if (typeof obje.constructor.get == "function") {
-                                    obje.constructor.get(fireStore, data[element]).subscribe(result => {
-                                        propriedades[element] = result;
-                                    })
-                                }
-
+                    if (typeof data == "object") {
+                        let x = Reflect.ownKeys(data)
+                        x.forEach(element => {
+                            propriedades[element] = {
+                                value: data[element],
+                                writable: true,
+                                enumerable: true
                             }
+                            // Verify if there is a many to one relationship in the document.
+                            // If exists, retrieve the Document from the database.
+                            if (classCaller.prototype._manyToOne != undefined) {
+                                if (classCaller.prototype._manyToOne[element] != undefined) {
+                                    let aClass = classCaller.prototype._manyToOne[element];
+                                    if (typeof aClass.constructor.get == "function") {
+                                        observables.push(aClass.constructor.get(fireStore, data[element]));
+                                        /*aClass.constructor.get(fireStore, data[element]).subscribe(result => {
+                                            propriedades[element] = result;
+                                        })*/
+                                    }
+
+                                }
+                            }
+
+
+                        });
+                        if(observables.length > 0){
+                            forkJoin(observables).subscribe(results => {
+                                let obj = Object.create(this.prototype, propriedades);
+                                for (let i = 0; i < results.length; i++) {
+                                    obj[results[i].className()] = results[i]
+                                }
+                                
+                                observer.next(obj);
+                                observer.complete();
+                            });
+                        }else{
+                            observer.next(Object.create(this.prototype, propriedades));
                         }
-
-
-                    });
-
-                    return Object.create(this.prototype, propriedades);
+                    }
+                } else {
+                    throw new Error("This document doesn't exist.");
                 }
-            } else {
+            } catch (e) {
                 throw new Error("This document doesn't exist.");
             }
-        } catch (e) {
-            throw new Error("This document doesn't exist.");
-        }
+        });
     }
 
     static _getFromSnapshot(fireStore, collection): Observable<any[]> {
@@ -213,16 +209,22 @@ export class Entity {
             let self = this;
             collection.snapshotChanges().subscribe(result => {
                 let documents = [];
+                let observables = [];
                 result.map(action => {
                     try {
-                        let document = this._documentToObject(fireStore, action, this);
-                        documents.push(document);
+                        observables.push(this._documentToObject(fireStore, action, this));
+                        
 
                     } catch (e) {
                         observer.error(new Error(e));
                     }
                 });
-
+                forkJoin(observables).subscribe(results => {
+                    for (let i = 0; i < results.length; i++) {
+                        documents.push(results[i]);
+                        
+                    }
+                });
                 observer.next(documents);
                 observer.complete();
 
@@ -242,9 +244,12 @@ export class Entity {
             let document: any = fireStore.doc<any>(this.className() + "/" + id);
             document.snapshotChanges().subscribe(result => {
                 try {
-                    let doc = this._documentToObject(fireStore, result, this);
-                    observer.next(doc);
-                    observer.complete();
+                    this._documentToObject(fireStore, result, this).subscribe(result=>{
+                        let doc = result;
+                        observer.next(doc);
+                        observer.complete();
+                    });
+                    
                 } catch (e) {
                     observer.error(new Error(e.message));
                 } finally {
