@@ -30,15 +30,17 @@ export class AppComponent {
   
   constructor(public db: AngularFirestore){
     let person = new Person(this.db);
-    c.name = "Leonardo"
-    c.add();
+    person.name = "Leonardo"
+    person.add().subscribe(result=>{
+      console.log(result.id) // optional
+    });
     
 
     Person.get(this.db, 'your-entity-id').subscribe(result=>{ // its a person!});
-    Person.getAll(this.db).subscribe(result=>{ // list of persons}); // yah, working on Person.getAll(), not ready yet
+    Person.getAll(this.db).subscribe(result=>{ // list of persons}); //
     Person.count(this.db).subscribe(result=>{ // number of documents});
 
-    c.delete();
+    person.delete();
     Person.deleteAll(this.db);
   }
 }
