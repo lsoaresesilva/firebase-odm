@@ -282,22 +282,24 @@ export class Entity {
 
             if (collectionName == undefined)
                 collectionName = this.className()
+                
             let collection: AngularFirestoreCollection<any> = fireStore.collection<any>(collectionName);
-            this.getAll(fireStore, collectionName).subscribe(result => {
-                let documents = [];
+            collection.ref.get().then( list =>{
 
-                for (let i = 0; i < result.length; i++) {
-                    documents.push(result[i].delete(collectionName));
-                }
+                const batch = fireStore.firestore.batch();
+                
+                list.forEach( doc => {
+                    batch.delete(doc.ref)
+                })
 
-                Promise.all(documents).then(result => {
+                batch.commit().then(() => {
                     observer.next();
                     observer.complete();
                 });
 
-            }, err => {
-                observer.error(err);
-            })
+                },err => {
+                    observer.error(err);
+                })
 
         });
     }
