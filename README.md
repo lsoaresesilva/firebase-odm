@@ -37,7 +37,9 @@ export class AppComponent {
     });
     
 
-    Person.get(this.db, 'your-entity-id').subscribe(result=>{ // its a person!});
+    Person.get(this.db, 'your-entity-id').subscribe(
+      document=>{ // its a person!},
+      err=>{// ops, an error, maybe a document with this id does not exists.});
     Person.getAll(this.db).subscribe(result=>{ // list of persons}); //
     Person.count(this.db).subscribe(result=>{ // number of documents});
 
