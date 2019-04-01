@@ -7,13 +7,12 @@ TODO: working to save relationships recursively and to update an entity.
 
 # Use
 
-1. Just copy the entity.ts file to your Angular project's folder.
-2. Add AngularFire2 to your project https://github.com/angular/angularfire2
+1. Clone the repository to your project as a submodule: git add submodule https://github.com/lsoaresesilva/firebase-odm.git
 3. Configure Firebase in your project
 4. Run npm test, and verify if everything works as expected (it will run the unit tests)
-4. Create a simple class and extend from Entity
+5. Create a simple class and extend from Document
 5. Inside your component, inject AngularFireStore
-6. Pass this instance to the constructor of your class which extended from Entity
+6. Pass this instance to the constructor of your class which extended from Document
 6. Enjoy!
 
 # Example
@@ -21,7 +20,8 @@ TODO: working to save relationships recursively and to update an entity.
 ```javascript
 \\file: person.ts
 
-export class Person extends Entity{
+@Collection("personCollection")
+export class Person extends Document{
   name:string;
 }
 
