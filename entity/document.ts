@@ -14,6 +14,13 @@ export function id(target, key) {
     })
 }
 */
+
+export function Collection(nome){
+    return function(target){
+        target.__name = nome;
+    }
+}
+
 export class Document {
 
     __id: any;
@@ -57,7 +64,13 @@ export class Document {
         return myObj
     }
     static className(): string {
-        return this.toString().split('(' || /s+/)[0].split(' ' || /s+/)[1];
+
+        if(this["__name"] != undefined){
+            return this["__name"];
+        }else{
+            return this.toString().split('(' || /s+/)[0].split(' ' || /s+/)[1];
+        }
+
     }
 
     className(): string {
